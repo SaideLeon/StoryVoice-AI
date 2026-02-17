@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>StoryVoice AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,200..900;1,200..900&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --bg-base: #0c0c0c;
+        --bg-surface: #141414;
+        --bg-surface-hover: #1c1c1c;
+        --border-subtle: rgba(255, 255, 255, 0.08);
+        --accent: #c9b99a;
+        --accent-dim: #8a7f6b;
+        --text-main: #e5e5e5;
+        --text-muted: #666666;
+      }
+      body {
+        font-family: 'DM Sans', sans-serif;
+        background-color: var(--bg-base);
+        color: var(--text-main);
+        -webkit-font-smoothing: antialiased;
+      }
+      .font-serif {
+        font-family: 'Crimson Pro', serif;
+      }
+      .font-mono {
+        font-family: 'DM Mono', monospace;
+      }
+      /* Custom scrollbar */
+      ::-webkit-scrollbar {
+        width: 4px;
+        height: 4px;
+      }
+      ::-webkit-scrollbar-track {
+        background: var(--bg-base); 
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #333; 
+        border-radius: 0px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #555; 
+      }
+      
+      /* Utility for fine borders */
+      .border-fine {
+        border-color: var(--border-subtle);
+      }
+      .bg-surface {
+        background-color: var(--bg-surface);
+      }
+      .text-accent {
+        color: var(--accent);
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0",
+    "jszip": "https://aistudiocdn.com/jszip@^3.10.1"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
