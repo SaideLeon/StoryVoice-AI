@@ -1,9 +1,10 @@
 import React from 'react';
-import { Play, Square, Loader2, Volume2, Palette, Command } from 'lucide-react';
+import { Play, Square, Loader2, Volume2, Palette, Command, Download } from 'lucide-react';
 import { AVAILABLE_VOICES, STORY_STYLES, VISUAL_STYLES, VoiceName } from '../types';
 
 interface ControlsProps {
   onGenerate: () => void;
+  onDownload: () => void;
   onPlay: () => void;
   onStop: () => void;
   isPlaying: boolean;
@@ -19,6 +20,7 @@ interface ControlsProps {
 
 const Controls: React.FC<ControlsProps> = ({
   onGenerate,
+  onDownload,
   onPlay,
   onStop,
   isPlaying,
@@ -121,6 +123,15 @@ const Controls: React.FC<ControlsProps> = ({
               {isPlaying ? <Square fill="currentColor" size={12} /> : <Play fill="currentColor" size={12} />}
               {isPlaying ? "PARAR REPRODUÇÃO" : "TOCAR NARRAÇÃO"}
             </button>
+            
+            <button
+              onClick={onDownload}
+              className="w-full py-3 bg-[#222] hover:bg-[#333] text-[#ccc] hover:text-white font-mono text-[10px] uppercase tracking-wider transition-colors flex items-center justify-center gap-2"
+            >
+              <Download size={14} />
+              BAIXAR ÁUDIO (.WAV)
+            </button>
+
             <button
               onClick={onGenerate}
               className="w-full py-3 border border-[#333] hover:border-[#666] text-[#888] hover:text-[#ccc] font-mono text-[10px] uppercase tracking-wider transition-colors"

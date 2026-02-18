@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Settings, Key, Upload, Loader2, X, Maximize2, Minimize2, Command, FileText, LayoutList, ChevronRight, Wand2, Sparkles } from 'lucide-react';
+import { Settings, Key, Upload, Loader2, X, Maximize2, Minimize2, Command, FileText, LayoutList, ChevronRight, Wand2, Sparkles, Save, FolderOpen, AlertCircle } from 'lucide-react';
 import JSZip from 'jszip';
 import Controls from './components/Controls';
 import WaveformVisualizer from './components/WaveformVisualizer';
@@ -21,6 +21,8 @@ Mas por medo dos sussurros.
 
 Porque, quando o vento soprava devagar entre os galhos, a árvore falava.`;
 
+const LOCAL_STORAGE_KEY = 'storyvoice_project';
+
 function App() {
   const [showLanding, setShowLanding] = useState(true);
   const [text, setText] = useState<string>(DEFAULT_STORY);
@@ -31,7 +33,9 @@ function App() {
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioBuffer, setAudioBuffer] = useState<AudioBuffer | null>(null);
+  const [audioBase64, setAudioBase64] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   // Visual Generation State
   const [selectedVisualStyleId, setSelectedVisualStyleId] = useState<string>('cinematic');
@@ -90,6 +94,82 @@ function App() {
     }
   };
 
+  // --- Persistence Logic ---
+
+  const handleSaveProject = () => {
+    try {
+      const projectData = {
+        version: 1,
+        timestamp: Date.now(),
+        text,
+        segments: storyboardSegments,
+        mode
+      };
+      
+      try {
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(projectData));
+        setStatusMessage("Projeto salvo com sucesso!");
+      } catch (e: any) {
+        // Handle QuotaExceededError
+        if (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
+          console.warn("Storage limit reached. Saving lite version without heavy assets.");
+          
+          // Create a lite version without base64 assets
+          const liteSegments = storyboardSegments.map(seg => ({
+            ...seg,
+            generatedImage: undefined, // Strip image
+            audio: undefined // Strip audio
+          }));
+          
+          const liteProjectData = {
+            ...projectData,
+            segments: liteSegments,
+            isLite: true
+          };
+          
+          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(liteProjectData));
+          setStatusMessage("Salvo (sem mídia devido ao tamanho).");
+        } else {
+          throw e;
+        }
+      }
+      
+      setTimeout(() => setStatusMessage(null), 3000);
+    } catch (err) {
+      console.error(err);
+      setError("Erro ao salvar projeto no navegador.");
+    }
+  };
+
+  const handleLoadProject = () => {
+    try {
+      const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (!raw) {
+        setError("Nenhum projeto salvo encontrado.");
+        return;
+      }
+
+      if (window.confirm("Carregar projeto salvo? O trabalho atual não salvo será perdido.")) {
+        const data = JSON.parse(raw);
+        setText(data.text || '');
+        setStoryboardSegments(data.segments || []);
+        if (data.mode) setMode(data.mode);
+        
+        if (data.isLite) {
+           setStatusMessage("Projeto carregado (Mídias precisam ser regeneradas).");
+        } else {
+           setStatusMessage("Projeto carregado com sucesso!");
+        }
+        
+        setTimeout(() => setStatusMessage(null), 3000);
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Erro ao carregar projeto.");
+    }
+  };
+
+
   // --- API Key Rotation Logic ---
   const handleKeyFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -97,10 +177,13 @@ function App() {
 
     try {
       const text = await file.text();
-      const keys = text.split(/\r?\n/).map(k => k.trim()).filter(k => k.length > 20);
+      // Filter keys that are long enough AND start with the Google API key prefix 'AIzaSy'
+      const keys = text.split(/\r?\n/)
+        .map(k => k.trim())
+        .filter(k => k.length > 20 && k.startsWith("AIzaSy"));
       
       if (keys.length === 0) {
-        setError("Nenhuma chave válida encontrada no arquivo.");
+        setError("Nenhuma chave válida (iniciada com 'AIzaSy') encontrada no arquivo.");
         return;
       }
       
@@ -151,6 +234,7 @@ function App() {
     setIsGeneratingAudio(true);
     setError(null);
     setAudioBuffer(null);
+    setAudioBase64(null);
     stopAudio();
 
     try {
@@ -159,6 +243,8 @@ function App() {
       const base64Audio = await generateSpeech(text, selectedVoice, style.prompt, activeKey);
       
       if (!base64Audio) throw new Error("Nenhum dado de áudio recebido.");
+
+      setAudioBase64(base64Audio);
 
       initAudioContext();
       if (!audioContextRef.current) return;
@@ -171,6 +257,20 @@ function App() {
     } finally {
       setIsGeneratingAudio(false);
     }
+  };
+
+  const handleDownloadMainAudio = () => {
+    if (!audioBase64) return;
+    const pcmData = decodeBase64(audioBase64);
+    const wavBlob = pcmToWav(pcmData);
+    const url = URL.createObjectURL(wavBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `storyvoice_audio_${Date.now()}.wav`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const handleGenerateStoryboard = async () => {
@@ -528,16 +628,32 @@ function App() {
             </div>
 
             <div className="flex items-center gap-3">
-              {error && (
-                <span className="text-red-400 text-xs font-mono flex items-center gap-2 mr-4 animate-pulse">
-                  <X size={12} className="cursor-pointer" onClick={() => setError(null)} />
-                  {error}
+              {statusMessage && (
+                <span className="text-[--accent] text-xs font-mono uppercase animate-fade-in mr-4 flex items-center gap-2">
+                   {statusMessage}
                 </span>
               )}
-              <button onClick={() => setShowSettings(true)} className="text-[#444] hover:text-[#ccc] transition-colors">
+              {error && (
+                <span className="text-red-400 text-xs font-mono flex items-center gap-2 mr-4 animate-pulse">
+                  <AlertCircle size={12} />
+                  <span className="cursor-pointer" onClick={() => setError(null)}>{error}</span>
+                </span>
+              )}
+
+              {/* Save / Load Buttons */}
+              <button onClick={handleSaveProject} className="text-[#444] hover:text-[--accent] transition-colors" title="Salvar Projeto">
+                <Save size={16} />
+              </button>
+              <button onClick={handleLoadProject} className="text-[#444] hover:text-[--accent] transition-colors" title="Carregar Projeto">
+                <FolderOpen size={16} />
+              </button>
+
+              <div className="h-4 w-[1px] bg-[#333] mx-1"></div>
+
+              <button onClick={() => setShowSettings(true)} className="text-[#444] hover:text-[#ccc] transition-colors" title="Configurações">
                 <Settings size={16} />
               </button>
-              <button onClick={toggleFullscreen} className="text-[#444] hover:text-[#ccc] transition-colors">
+              <button onClick={toggleFullscreen} className="text-[#444] hover:text-[#ccc] transition-colors" title="Tela Cheia">
                  {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
               </button>
             </div>
@@ -612,6 +728,7 @@ function App() {
         <aside className="w-[360px] bg-[#111] border-l border-fine flex flex-col overflow-y-auto custom-scrollbar">
            <Controls
               onGenerate={handleGenerateAudio}
+              onDownload={handleDownloadMainAudio}
               onPlay={playAudio}
               onStop={stopAudio}
               isPlaying={isPlaying}
