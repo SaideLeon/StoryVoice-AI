@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Settings, Key, Upload, Loader2, X, Maximize2, Minimize2, Command, FileText, LayoutList, ChevronRight } from 'lucide-react';
+import { Settings, Key, Upload, Loader2, X, Maximize2, Minimize2, Command, FileText, LayoutList, ChevronRight, Wand2, Sparkles } from 'lucide-react';
 import JSZip from 'jszip';
 import Controls from './components/Controls';
 import WaveformVisualizer from './components/WaveformVisualizer';
 import StoryboardPanel from './components/StoryboardPanel';
-import { generateSpeech, generateStoryboard, generateSceneImage, checkImageForCharacter } from './services/geminiService';
+import LandingPage from './components/LandingPage';
+import { generateSpeech, generateStoryboard, generateSceneImage, checkImageForCharacter, generateDramaticScript } from './services/geminiService';
 import { decodeBase64, decodeAudioData, pcmToWav } from './utils/audioUtils';
 import { renderVideoFromSegments, RenderProgress } from './utils/videoUtils';
 import { VoiceName, STORY_STYLES, VISUAL_STYLES, StoryboardSegment } from './types';
@@ -21,6 +22,7 @@ Mas por medo dos sussurros.
 Porque, quando o vento soprava devagar entre os galhos, a árvore falava.`;
 
 function App() {
+  const [showLanding, setShowLanding] = useState(true);
   const [text, setText] = useState<string>(DEFAULT_STORY);
   
   // Audio State
@@ -39,6 +41,11 @@ function App() {
   const [isGeneratingStoryboard, setIsGeneratingStoryboard] = useState(false);
   const [storyboardSegments, setStoryboardSegments] = useState<StoryboardSegment[]>([]);
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
+  
+  // Script Generation State
+  const [showScriptModal, setShowScriptModal] = useState(false);
+  const [scriptTopic, setScriptTopic] = useState('');
+  const [isGeneratingScript, setIsGeneratingScript] = useState(false);
   
   // Generation Queues
   const [generatingIndices, setGeneratingIndices] = useState<number[]>([]);
@@ -180,6 +187,23 @@ function App() {
       setError("Falha ao gerar storyboard.");
     } finally {
       setIsGeneratingStoryboard(false);
+    }
+  };
+
+  const handleGenerateDramaticScript = async () => {
+    if (!scriptTopic.trim()) return;
+    setIsGeneratingScript(true);
+    setError(null);
+    try {
+      const activeKey = getNextKey();
+      const generatedScript = await generateDramaticScript(scriptTopic, activeKey);
+      setText(generatedScript);
+      setShowScriptModal(false);
+      setScriptTopic('');
+    } catch (err: any) {
+      setError("Falha ao gerar roteiro.");
+    } finally {
+      setIsGeneratingScript(false);
     }
   };
 
@@ -380,6 +404,10 @@ function App() {
     }
   };
 
+  if (showLanding) {
+    return <LandingPage onEnter={() => setShowLanding(false)} />;
+  }
+
   return (
     <div className={`h-screen flex flex-col bg-[--bg-base] text-[--text-main] overflow-hidden`}>
       
@@ -413,6 +441,41 @@ function App() {
                 </div>
              </div>
            </div>
+        </div>
+      )}
+
+      {/* Script Generation Modal */}
+      {showScriptModal && (
+        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 backdrop-blur-md">
+          <div className="bg-[#141414] border border-[#333] w-full max-w-lg shadow-2xl shadow-black">
+            <div className="flex justify-between items-center p-4 border-b border-fine bg-[#1a1a1a]">
+              <h3 className="text-sm font-bold font-mono uppercase tracking-wider flex items-center gap-2 text-[--accent]">
+                <Sparkles size={16} />
+                Gerador de Roteiro Viral
+              </h3>
+              <button onClick={() => setShowScriptModal(false)} className="text-[#666] hover:text-white transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-6 space-y-6">
+              <div className="space-y-2">
+                <label className="block text-xs font-mono text-[#888] uppercase">TEMA DO ROTEIRO "O QUE ACONTECERIA SE..."</label>
+                <textarea 
+                  value={scriptTopic}
+                  onChange={(e) => setScriptTopic(e.target.value)}
+                  placeholder="Ex: O que aconteceria se você não dormisse por 7 dias?"
+                  className="w-full h-32 bg-[#0c0c0c] border border-fine p-4 text-[#ccc] focus:outline-none focus:border-[--accent] resize-none font-serif text-lg"
+                />
+              </div>
+              <button 
+                onClick={handleGenerateDramaticScript}
+                disabled={isGeneratingScript || !scriptTopic.trim()}
+                className="w-full py-4 bg-[--accent] hover:bg-[#d4c5a8] text-black font-mono text-xs uppercase font-bold tracking-wider transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isGeneratingScript ? <Loader2 size={16} className="animate-spin" /> : "GERAR ROTEIRO COMPLETO"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -484,7 +547,18 @@ function App() {
           <main className="flex-1 overflow-hidden relative">
             {mode === 'editor' && (
               <div className="h-full flex flex-col">
-                <div className="flex-1 relative">
+                <div className="flex-1 relative group/editor">
+                   {/* Magic Script Button (Visible on hover or always) */}
+                   <div className="absolute top-4 right-8 z-10 opacity-0 group-hover/editor:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => setShowScriptModal(true)}
+                        className="bg-[#141414]/80 backdrop-blur border border-fine text-[#888] hover:border-[--accent] hover:text-[--accent] px-3 py-2 flex items-center gap-2 transition-all text-xs font-mono uppercase"
+                      >
+                         <Wand2 size={14} />
+                         Script Mágico
+                      </button>
+                   </div>
+
                   <textarea
                     className="w-full h-full bg-[--bg-base] p-8 md:p-12 text-[#ccc] placeholder-[#333] resize-none focus:outline-none font-serif text-xl md:text-2xl leading-relaxed selection:bg-[--accent] selection:text-black custom-scrollbar"
                     placeholder="Comece a escrever sua história..."

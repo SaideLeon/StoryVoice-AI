@@ -7,7 +7,7 @@ interface WaveformVisualizerProps {
 
 const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({ analyser, isPlaying }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationRef = useRef<number>();
+  const animationRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     const canvas = canvasRef.current;

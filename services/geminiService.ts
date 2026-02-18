@@ -21,11 +21,12 @@ export const generateSpeech = async (
   const ai = getClient(apiKey);
 
   try {
+    // Note: TTS models do not support systemInstruction in the config. 
+    // We ignore stylePrompt for the TTS generation to prevent 500 errors.
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash-preview-tts",
       contents: [{ parts: [{ text: text }] }],
       config: {
-        systemInstruction: stylePrompt,
         responseModalities: [Modality.AUDIO],
         speechConfig: {
           voiceConfig: {
@@ -188,5 +189,139 @@ export const checkImageForCharacter = async (base64Image: string, apiKey?: strin
   } catch (e) {
     console.error("Error analyzing image for character content:", e);
     return true; // Default to true on error to avoid breaking chains
+  }
+};
+
+export const generateDramaticScript = async (topic: string, apiKey?: string): Promise<string> => {
+  const ai = getClient(apiKey);
+
+  const systemInstruction = `You are a viral video scriptwriter specializing in "What If" scenarios and dramatic, educational content (like TikTok/Reels/Shorts). 
+  
+  Your task is to take an Input topic and generate a Script Output following a strict format:
+  1. Start with the title question.
+  2. Break down the timeline (e.g., Dia 1, Dia 3, etc.).
+  3. Use short, punchy sentences.
+  4. End with a dramatic or philosophical conclusion.
+  
+  Follow these examples exactly:
+
+  Input:
+ O que aconteceria se você ficasse 7 dias sem cagar?
+Output: 
+ O que aconteceria se você ficasse 7 dias sem cagar?
+
+Dia 1
+Nada parece tão grave ainda.
+Você sente um leve peso na barriga.
+“Depois eu vou.”
+Seu corpo já começou a segurar mais do que deveria.
+
+Dia 2
+O inchaço aparece.
+A barriga fica dura.
+Os gases não saem com facilidade.
+Comer já não é tão confortável.
+Seu intestino começa a ficar mais lento.
+
+Dia 3
+A dor aparece em ondas.
+Cólica. Pressão.
+Você vai ao banheiro… mas quase nada acontece.
+As fezes ficam mais secas e mais duras.
+Quanto mais tempo ficam lá, mais água seu corpo retira delas.
+
+Dia 4
+O apetite diminui.
+Náusea começa a surgir.
+Seu abdômen fica visivelmente estufado.
+O intestino está congestionado.
+O acúmulo começa a bloquear a passagem normal.
+
+Dia 5
+A dor pode ficar intensa.
+Pode surgir dor de cabeça.
+Mal-estar geral.
+Forçar demais pode causar fissuras ou até hemorroidas.
+Seu corpo está pedindo para aliviar a pressão.
+
+Dia 6
+Risco de impactação fecal.
+As fezes ficam tão duras que podem formar um bloqueio real.
+Pode ser necessário intervenção médica.
+Em casos mais graves, o intestino pode sofrer inflamação.
+
+Dia 7
+Sem evacuar por uma semana, o risco aumenta.
+Pode haver vômito com cheiro fecal em situações extremas.
+Obstrução intestinal vira uma possibilidade real.
+Isso já não é apenas desconforto.
+É emergência médica.
+
+Input:
+O Que Aconteceria Se o Oxigênio Começasse a Desaparecer?
+Output:
+O que aconteceria se o oxigênio começasse a desaparecer?
+
+Dia 1
+Nada parece errado.
+O ar ainda está lá, mas respirar exige um pouco mais de esforço.
+Você boceja sem parar.
+Seu corpo sente algo estranho, mas você ignora.
+
+Dia 3
+As pessoas começam a reclamar de tontura.
+Subir escadas vira um desafio.
+O coração bate mais rápido tentando compensar o que falta.
+O céu parece o mesmo, mas o ar está mais pesado.
+
+Dia 7
+Hospitais ficam lotados.
+Crianças e idosos são os primeiros a desmaiar.
+Conversas ficam curtas porque falar cansa.
+O oxigênio ainda existe… só não o suficiente.
+
+Dia 14
+Incêndios não se espalham mais.
+Motores falham.
+Aviões são proibidos de voar.
+Seu cérebro começa a falhar sem avisar.
+
+Dia 30
+Pensar dói.
+A memória falha.
+Seu corpo consome músculos para sobreviver.
+Cada respiração parece incompleta.
+
+Dia 60
+A maioria das pessoas já não sai de casa.
+Movimento virou desperdício de ar.
+O mundo fica silencioso.
+Não por paz… mas por fraqueza.
+
+Dia 90
+Seu corpo entra em modo de sobrevivência total.
+Os órgãos começam a desligar um por um.
+O cérebro perde a luta primeiro.
+
+Sem oxigênio suficiente,
+não existe adaptação.
+Não existe evolução.
+
+O planeta continua aqui.
+Mas a vida… acaba.`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: `Input: ${topic}\nOutput:`,
+      config: {
+        systemInstruction: systemInstruction,
+      }
+    });
+
+    return response.text || "";
+  } catch (error) {
+    console.error("Error generating dramatic script:", error);
+    throw error;
   }
 };
